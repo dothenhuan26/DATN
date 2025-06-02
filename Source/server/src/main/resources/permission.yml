@@ -1,0 +1,23 @@
+no-auth:
+  - /api/ping
+  - /api/v1/oauth2/token
+
+white-list:
+  username:
+    - nhuandt3
+    - admin
+
+/api/user/create:
+  group: '*'
+/api/user/get-users:
+  group: '*'
+/api/gas-sensor/logs:
+  group: '*'
+/api/gas-sensor/logs/top:
+  group: '*'
+/api/temperature-sensor/logs:
+  group: '*'
+/api/temperature-sensor/logs/top:
+  group: '*'
+/api/config-limit/save:
+  group: '*'

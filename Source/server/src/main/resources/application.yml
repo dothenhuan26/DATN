@@ -1,0 +1,35 @@
+server:
+  port: 8088
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: smart_home
+    init: false
+  datasource:
+    url: ${DB_IAM_HOST:jdbc:mysql://localhost:3306/new_smart_home}
+    username: ${DB_IAM_USERNAME:root}
+    password: ${DB_IAM_PASSWORD:root}
+    driver-class-name: "com.mysql.cj.jdbc.Driver"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+security:
+  password:
+    strength: 10
+  jwt:
+    sign-key: ${SIGN_KEY:66Oiu91Jvn/Tg4BHOzhLykrB8CJW5f/cRIuCmD5HCB48Km/xFGmmIHMOVdR3DtkM}
+    valid-duration: ${VALID_DURATION:900} # second
+    refresh-duration: ${REFRESH_DURATION:36000} # second
+
+common:
+  list:
+    paginate:
+      limit: ${LIMIT:10}
+      page:
+        start: ${START:1}
+    limit:
+      top: ${LIMIT_TOP:50}
