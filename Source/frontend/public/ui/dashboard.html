@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas & Environmental Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            margin: 0 auto;
+        }
+        
+        .gauge-body {
+            width: 100%;
+            height: 0;
+            padding-bottom: 50%;
+            position: relative;
+            border-top-left-radius: 100% 200%;
+            border-top-right-radius: 100% 200%;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: center top;
+            transform: rotate(0.5turn);
+            transition: transform 0.5s ease-out;
+        }
+        
+        .gauge-cover {
+            width: 75%;
+            height: 150%;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .alert-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .data-card {
+            transition: all 0.3s ease;
+        }
+        
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="hidden md:flex md:flex-shrink-0">
+            <div class="flex flex-col w-64 bg-gray-800">
+                <div class="flex items-center justify-center h-16 px-4 bg-gray-900">
+                    <div class="flex items-center">
+                        <i class="fas fa-fire text-red-500 text-2xl mr-2"></i>
+                        <span class="text-white font-semibold text-lg">EnvTrack Pro</span>
+                    </div>
+                </div>
+                <div class="flex flex-col flex-grow pt-5 overflow-y-auto">
+                    <div class="flex-1 px-4 space-y-4">
+                        <nav class="flex-1 space-y-2">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-md group">
+                                <i class="fas fa-tachometer-alt mr-3 text-gray-300 group-hover:text-white"></i>
+                                Dashboard
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-chart-line mr-3 text-gray-400 group-hover:text-white"></i>
+                                Analytics
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-bell mr-3 text-gray-400 group-hover:text-white"></i>
+                                Alerts
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-cog mr-3 text-gray-400 group-hover:text-white"></i>
+                                Settings
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-database mr-3 text-gray-400 group-hover:text-white"></i>
+                                Historical Data
+                            </a>
+                        </nav>
+                    </div>
+                    <div class="px-4 pb-4">
+                        <div class="bg-gray-700 rounded-md p-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-shield-alt text-green-400 text-xl"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-white">System Status</p>
+                                    <p class="text-xs text-gray-300">All sensors operational</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Top Navigation -->
+            <div class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+                <div class="flex items-center">
+                    <button class="text-gray-500 focus:outline-none md:hidden">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="relative mx-4">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" class="block w-full py-2 pl-10 pr-3 text-sm bg-gray-100 border border-transparent rounded-md focus:bg-white focus:border-gray-300 focus:outline-none" placeholder="Search...">
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="p-1 text-gray-400 rounded-full hover:text-gray-500 focus:outline-none">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="relative">
+                        <button class="flex items-center focus:outline-none">
+                            <img class="w-8 h-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User avatar">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Admin</span>
+                            <i class="ml-1 fas fa-chevron-down text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 overflow-auto p-6 custom-scrollbar">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">Environmental Monitoring Dashboard</h1>
+                    <p class="text-gray-600">Real-time tracking of gas concentration, temperature and humidity</p>
+                </div>
+
+                <!-- Status Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow p-6 data-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Gas Concentration</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">200 <span class="text-sm text-gray-500">ppm</span></p>
+                                <p class="mt-1 text-sm text-green-500">
+                                    <i class="fas fa-check-circle mr-1"></i> Normal level
+                                </p>
+                            </div>
+                            <div class="gauge-container">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill bg-blue-500" style="transform: rotate(0.3turn);"></div>
+                                </div>
+                                <div class="gauge-cover">30%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6 data-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Temperature</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">28.1 <span class="text-sm text-gray-500">°C</span></p>
+                                <p class="mt-1 text-sm text-blue-500">
+                                    <i class="fas fa-thermometer-half mr-1"></i> Comfortable
+                                </p>
+                            </div>
+                            <div>
+                                <i class="fas fa-temperature-high text-4xl text-orange-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6 data-card">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Humidity</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">58.3 <span class="text-sm text-gray-500">%</span></p>
+                                <p class="mt-1 text-sm text-green-500">
+                                    <i class="fas fa-tint mr-1"></i> Optimal
+                                </p>
+                            </div>
+                            <div>
+                                <i class="fas fa-tint text-4xl text-blue-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Gas Concentration Chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Gas Concentration</h2>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-md">1h</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">6h</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">24h</button>
+                            </div>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="gasChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Temperature & Humidity Chart -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Temperature & Humidity</h2>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-md">1h</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">6h</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">24h</button>
+                            </div>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="tempHumidityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Readings -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Gas Readings -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Recent Gas Readings</h2>
+                            <button class="text-sm text-blue-600 hover:text-blue-800">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="gasReadingsTable">
+                                    <!-- Data will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Temperature/Humidity Readings -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Recent Temp/Humidity</h2>
+                            <button class="text-sm text-blue-600 hover:text-blue-800">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Temp (°C)</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Humidity (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="tempHumidityReadingsTable">
+                                    <!-- Data will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data from API responses
+        const gasData = {
+            "success": true,
+            "message": "Lấy logs khí Gas thành công!",
+            "data": {
+                "next_cursor": 2412,
+                "logs": [
+                    {
+                        "id": 2403,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:51"
+                    },
+                    {
+                        "id": 2404,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:52"
+                    },
+                    {
+                        "id": 2405,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:54"
+                    },
+                    {
+                        "id": 2406,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:56"
+                    },
+                    {
+                        "id": 2407,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:57"
+                    },
+                    {
+                        "id": 2408,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 199.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:10:59"
+                    },
+                    {
+                        "id": 2409,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:00"
+                    },
+                    {
+                        "id": 2410,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:02"
+                    },
+                    {
+                        "id": 2411,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:03"
+                    },
+                    {
+                        "id": 2412,
+                        "device_id": 1,
+                        "action": "read_gas",
+                        "concentrations": 200.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:04"
+                    }
+                ]
+            }
+        };
+
+        const tempHumidityData = {
+            "success": true,
+            "message": "Lấy logs khí Gas thành công!",
+            "data": {
+                "next_cursor": 2422,
+                "logs": [
+                    {
+                        "id": 2413,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:06"
+                    },
+                    {
+                        "id": 2414,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.0,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:07"
+                    },
+                    {
+                        "id": 2415,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.1,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:09"
+                    },
+                    {
+                        "id": 2416,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.1,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:10"
+                    },
+                    {
+                        "id": 2417,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.2,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:12"
+                    },
+                    {
+                        "id": 2418,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.0,
+                        "humidity": 58.2,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:13"
+                    },
+                    {
+                        "id": 2419,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.1,
+                        "humidity": 58.2,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:15"
+                    },
+                    {
+                        "id": 2420,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.1,
+                        "humidity": 58.2,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:16"
+                    },
+                    {
+                        "id": 2421,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.1,
+                        "humidity": 58.3,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:18"
+                    },
+                    {
+                        "id": 2422,
+                        "device_id": 2,
+                        "action": "read_temp",
+                        "temperature": 28.1,
+                        "humidity": 58.3,
+                        "description": "...",
+                        "created": "2025-05-13T20:11:19"
+                    }
+                ]
+            }
+        };
+
+        // Format time from ISO string
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        }
+
+        // Populate gas readings table
+        const gasTableBody = document.getElementById('gasReadingsTable');
+        gasData.data.logs.slice(0, 5).forEach(log => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(log.created)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Device ${log.device_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.concentrations} ppm</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Normal</span>
+                </td>
+            `;
+            gasTableBody.appendChild(row);
+        });
+
+        // Populate temperature/humidity readings table
+        const tempHumidityTableBody = document.getElementById('tempHumidityReadingsTable');
+        tempHumidityData.data.logs.slice(0, 5).forEach(log => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(log.created)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Device ${log.device_id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.temperature} °C</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.humidity} %</td>
+            `;
+            tempHumidityTableBody.appendChild(row);
+        });
+
+        // Gas Chart
+        const gasCtx = document.getElementById('gasChart').getContext('2d');
+        const gasChart = new Chart(gasCtx, {
+            type: 'line',
+            data: {
+                labels: gasData.data.logs.map(log => formatTime(log.created)),
+                datasets: [{
+                    label: 'Gas Concentration (ppm)',
+                    data: gasData.data.logs.map(log => log.concentrations),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Concentration (ppm)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+
+        // Temperature & Humidity Chart
+        const tempHumidityCtx = document.getElementById('tempHumidityChart').getContext('2d');
+        const tempHumidityChart = new Chart(tempHumidityCtx, {
+            type: 'line',
+            data: {
+                labels: tempHumidityData.data.logs.map(log => formatTime(log.created)),
+                datasets: [
+                    {
+                        label: 'Temperature (°C)',
+                        data: tempHumidityData.data.logs.map(log => log.temperature),
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        borderWidth: 2,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: tempHumidityData.data.logs.map(log => log.humidity),
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        tension: 0.3,
+                        fill: true,
+                        borderWidth: 2,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Temperature (°C)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Humidity (%)'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // Update gas gauge
+            const gasGauge = document.querySelector('.gauge-fill.bg-blue-500');
+            if (gasGauge) {
+                const currentRotation = parseFloat(gasGauge.style.transform.replace('rotate(', '').replace('turn)', ''));
+                const newRotation = currentRotation + (Math.random() * 0.02 - 0.01);
+                gasGauge.style.transform = `rotate(${Math.max(0, Math.min(0.5, newRotation))}turn)`;
+                
+                const gaugeCover = gasGauge.parentElement.nextElementSibling;
+                if (gaugeCover) {
+                    const currentValue = parseInt(gaugeCover.textContent.replace('%', ''));
+                    const newValue = currentValue + (Math.random() * 2 - 1);
+                    gaugeCover.textContent = `${Math.max(0, Math.min(100, Math.round(newValue)))}%`;
+                }
+            }
+            
+            // Update gas chart with new data point
+            const lastGasTime = new Date(gasData.data.logs[gasData.data.logs.length - 1].created);
+            lastGasTime.setSeconds(lastGasTime.getSeconds() + 2);
+            
+            const newGasValue = 200 + (Math.random() * 4 - 2);
+            
+            gasData.data.logs.push({
+                id: gasData.data.logs.length + 2403,
+                device_id: 1,
+                action: "read_gas",
+                concentrations: newGasValue,
+                description: "...",
+                created: lastGasTime.toISOString()
+            });
+            
+            if (gasData.data.logs.length > 15) {
+                gasData.data.logs.shift();
+            }
+            
+            gasChart.data.labels = gasData.data.logs.map(log => formatTime(log.created));
+            gasChart.data.datasets[0].data = gasData.data.logs.map(log => log.concentrations);
+            gasChart.update();
+            
+            // Update temp/humidity chart with new data point
+            const lastTempTime = new Date(tempHumidityData.data.logs[tempHumidityData.data.logs.length - 1].created);
+            lastTempTime.setSeconds(lastTempTime.getSeconds() + 2);
+            
+            const newTempValue = 28.0 + (Math.random() * 0.2 - 0.1);
+            const newHumidityValue = 58.0 + (Math.random() * 0.2 - 0.1);
+            
+            tempHumidityData.data.logs.push({
+                id: tempHumidityData.data.logs.length + 2413,
+                device_id: 2,
+                action: "read_temp",
+                temperature: newTempValue,
+                humidity: newHumidityValue,
+                description: "...",
+                created: lastTempTime.toISOString()
+            });
+            
+            if (tempHumidityData.data.logs.length > 15) {
+                tempHumidityData.data.logs.shift();
+            }
+            
+            tempHumidityChart.data.labels = tempHumidityData.data.logs.map(log => formatTime(log.created));
+            tempHumidityChart.data.datasets[0].data = tempHumidityData.data.logs.map(log => log.temperature);
+            tempHumidityChart.data.datasets[1].data = tempHumidityData.data.logs.map(log => log.humidity);
+            tempHumidityChart.update();
+            
+            // Update the tables with the latest readings
+            updateTables();
+            
+        }, 2000);
+
+        // Function to update tables with latest readings
+        function updateTables() {
+            // Update gas table
+            gasTableBody.innerHTML = '';
+            gasData.data.logs.slice(-5).reverse().forEach(log => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(log.created)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Device ${log.device_id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.concentrations.toFixed(1)} ppm</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Normal</span>
+                    </td>
+                `;
+                gasTableBody.appendChild(row);
+            });
+
+            // Update temp/humidity table
+            tempHumidityTableBody.innerHTML = '';
+            tempHumidityData.data.logs.slice(-5).reverse().forEach(log => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTime(log.created)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Device ${log.device_id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.temperature.toFixed(1)} °C</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${log.humidity.toFixed(1)} %</td>
+                `;
+                tempHumidityTableBody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

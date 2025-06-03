@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Concentration Monitoring System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gauge-container {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            margin: 0 auto;
+        }
+        
+        .gauge-body {
+            width: 100%;
+            height: 0;
+            padding-bottom: 50%;
+            position: relative;
+            border-top-left-radius: 100% 200%;
+            border-top-right-radius: 100% 200%;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: center top;
+            transform: rotate(0.5turn);
+            transition: transform 0.5s ease-out;
+        }
+        
+        .gauge-cover {
+            width: 75%;
+            height: 150%;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .alert-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="hidden md:flex md:flex-shrink-0">
+            <div class="flex flex-col w-64 bg-gray-800">
+                <div class="flex items-center justify-center h-16 px-4 bg-gray-900">
+                    <div class="flex items-center">
+                        <i class="fas fa-fire text-red-500 text-2xl mr-2"></i>
+                        <span class="text-white font-semibold text-lg">GasTrack Pro</span>
+                    </div>
+                </div>
+                <div class="flex flex-col flex-grow pt-5 overflow-y-auto">
+                    <div class="flex-1 px-4 space-y-4">
+                        <nav class="flex-1 space-y-2">
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-md group">
+                                <i class="fas fa-tachometer-alt mr-3 text-gray-300 group-hover:text-white"></i>
+                                Dashboard
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-chart-line mr-3 text-gray-400 group-hover:text-white"></i>
+                                Analytics
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-bell mr-3 text-gray-400 group-hover:text-white"></i>
+                                Alerts
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-cog mr-3 text-gray-400 group-hover:text-white"></i>
+                                Settings
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-users mr-3 text-gray-400 group-hover:text-white"></i>
+                                Users
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-700 rounded-md group">
+                                <i class="fas fa-file-alt mr-3 text-gray-400 group-hover:text-white"></i>
+                                Reports
+                            </a>
+                        </nav>
+                    </div>
+                    <div class="px-4 pb-4">
+                        <div class="bg-gray-700 rounded-md p-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-shield-alt text-green-400 text-xl"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-white">System Status</p>
+                                    <p class="text-xs text-gray-300">All sensors operational</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Top Navigation -->
+            <div class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+                <div class="flex items-center">
+                    <button class="text-gray-500 focus:outline-none md:hidden">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="relative mx-4">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input type="text" class="block w-full py-2 pl-10 pr-3 text-sm bg-gray-100 border border-transparent rounded-md focus:bg-white focus:border-gray-300 focus:outline-none" placeholder="Search...">
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="p-1 text-gray-400 rounded-full hover:text-gray-500 focus:outline-none">
+                        <i class="fas fa-bell"></i>
+                    </button>
+                    <div class="relative">
+                        <button class="flex items-center focus:outline-none">
+                            <img class="w-8 h-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User avatar">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Admin</span>
+                            <i class="ml-1 fas fa-chevron-down text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 overflow-auto p-6 custom-scrollbar">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-800">Gas Concentration Monitoring</h1>
+                    <p class="text-gray-600">Real-time tracking and analysis of hazardous gas levels</p>
+                </div>
+
+                <!-- Status Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Methane (CH₄)</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">1,250 <span class="text-sm text-gray-500">ppm</span></p>
+                                <p class="mt-1 text-sm text-green-500">
+                                    <i class="fas fa-arrow-up mr-1"></i> 2.1% from last hour
+                                </p>
+                            </div>
+                            <div class="gauge-container">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill bg-yellow-400" style="transform: rotate(0.3turn);"></div>
+                                </div>
+                                <div class="gauge-cover">65%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Carbon Monoxide (CO)</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">35 <span class="text-sm text-gray-500">ppm</span></p>
+                                <p class="mt-1 text-sm text-red-500">
+                                    <i class="fas fa-arrow-up mr-1"></i> 5.7% from last hour
+                                </p>
+                            </div>
+                            <div class="gauge-container">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill bg-orange-500" style="transform: rotate(0.4turn);"></div>
+                                </div>
+                                <div class="gauge-cover">80%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6 alert-pulse">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Hydrogen Sulfide (H₂S)</p>
+                                <p class="mt-1 text-2xl font-semibold text-red-600">12 <span class="text-sm text-gray-500">ppm</span></p>
+                                <p class="mt-1 text-sm text-red-500">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i> Warning level
+                                </p>
+                            </div>
+                            <div class="gauge-container">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill bg-red-500" style="transform: rotate(0.6turn);"></div>
+                                </div>
+                                <div class="gauge-cover">120%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500">Oxygen (O₂)</p>
+                                <p class="mt-1 text-2xl font-semibold text-gray-900">20.9 <span class="text-sm text-gray-500">%</span></p>
+                                <p class="mt-1 text-sm text-green-500">
+                                    <i class="fas fa-check-circle mr-1"></i> Normal level
+                                </p>
+                            </div>
+                            <div class="gauge-container">
+                                <div class="gauge-body">
+                                    <div class="gauge-fill bg-blue-500" style="transform: rotate(0.25turn);"></div>
+                                </div>
+                                <div class="gauge-cover">50%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts and Main Content -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <!-- Main Chart -->
+                    <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Gas Concentration Trends</h2>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-md">24h</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">7d</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">30d</button>
+                            </div>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Status -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Sensor Status</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                    <i class="fas fa-check text-green-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900">Zone 1 - CH₄ Sensor</p>
+                                    <p class="text-sm text-gray-500">Last reading: 1,250 ppm</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                    <i class="fas fa-check text-green-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900">Zone 2 - CO Sensor</p>
+                                    <p class="text-sm text-gray-500">Last reading: 35 ppm</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                                    <i class="fas fa-exclamation text-red-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900">Zone 3 - H₂S Sensor</p>
+                                    <p class="text-sm text-gray-500">Warning: 12 ppm (threshold: 10 ppm)</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                    <i class="fas fa-check text-green-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900">Zone 4 - O₂ Sensor</p>
+                                    <p class="text-sm text-gray-500">Last reading: 20.9%</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                    <i class="fas fa-sync-alt text-yellow-500"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-900">Zone 5 - CO₂ Sensor</p>
+                                    <p class="text-sm text-gray-500">Calibrating...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts and Recent Readings -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Alerts -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Recent Alerts</h2>
+                            <button class="text-sm text-blue-600 hover:text-blue-800">View All</button>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                        <i class="fas fa-exclamation-triangle text-red-500"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-gray-900">H₂S Level Exceeded</p>
+                                    <p class="text-sm text-gray-500">Zone 3 - 12 ppm detected (threshold: 10 ppm)</p>
+                                    <p class="text-xs text-gray-400 mt-1">2 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                                        <i class="fas fa-info-circle text-yellow-500"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-gray-900">CO Rising Trend</p>
+                                    <p class="text-sm text-gray-500">Zone 2 - CO levels increasing by 5.7% in last hour</p>
+                                    <p class="text-xs text-gray-400 mt-1">15 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 mt-1">
+                                    <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <i class="fas fa-check-circle text-blue-500"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-gray-900">System Check</p>
+                                    <p class="text-sm text-gray-500">All sensors reporting normally</p>
+                                    <p class="text-xs text-gray-400 mt-1">1 hour ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Readings -->
+                    <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Recent Readings</h2>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-xs bg-blue-100 text-blue-600 rounded-md">All</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">CH₄</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">CO</button>
+                                <button class="px-3 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">H₂S</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sensor</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2 min ago</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Zone 3 - H₂S</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12 ppm</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Warning</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">5 min ago</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Zone 2 - CO</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">35 ppm</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Caution</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">10 min ago</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Zone 1 - CH₄</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1,250 ppm</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Normal</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15 min ago</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Zone 4 - O₂</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">20.9%</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Normal</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">20 min ago</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Zone 5 - CO₂</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">450 ppm</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Calibrating</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main Chart
+        const mainCtx = document.getElementById('mainChart').getContext('2d');
+        const mainChart = new Chart(mainCtx, {
+            type: 'line',
+            data: {
+                labels: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                datasets: [
+                    {
+                        label: 'Methane (CH₄)',
+                        data: [1100, 1150, 1200, 1250, 1300, 1250, 1200, 1150, 1200, 1250, 1300, 1350],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Carbon Monoxide (CO)',
+                        data: [20, 22, 25, 28, 30, 32, 34, 35, 33, 32, 31, 30],
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Hydrogen Sulfide (H₂S)',
+                        data: [5, 6, 7, 8, 9, 10, 11, 12, 11, 10, 9, 8],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'Oxygen (O₂)',
+                        data: [20.9, 20.8, 20.9, 20.8, 20.9, 20.8, 20.9, 20.8, 20.9, 20.8, 20.9, 20.8],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return value + (this.chart.data.datasets[this.chart.getDatasetMeta(3).index].label.includes('O₂') ? '%' : ' ppm');
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // Update H2S gauge to show alert
+            const h2sGauge = document.querySelector('.gauge-fill.bg-red-500');
+            if (h2sGauge) {
+                const currentRotation = parseFloat(h2sGauge.style.transform.replace('rotate(', '').replace('turn)', ''));
+                h2sGauge.style.transform = `rotate(${currentRotation + 0.01}turn)`;
+                
+                const gaugeCover = h2sGauge.parentElement.nextElementSibling;
+                if (gaugeCover) {
+                    const currentValue = parseInt(gaugeCover.textContent.replace('%', ''));
+                    gaugeCover.textContent = `${Math.min(currentValue + 1, 150)}%`;
+                }
+            }
+            
+            // Update chart data
+            mainChart.data.labels.push(new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+            if (mainChart.data.labels.length > 12) {
+                mainChart.data.labels.shift();
+            }
+            
+            mainChart.data.datasets.forEach(dataset => {
+                const lastValue = dataset.data[dataset.data.length - 1];
+                let newValue;
+                
+                if (dataset.label.includes('CH₄')) {
+                    newValue = lastValue + (Math.random() * 20 - 10);
+                } else if (dataset.label.includes('CO')) {
+                    newValue = lastValue + (Math.random() * 2 - 1);
+                } else if (dataset.label.includes('H₂S')) {
+                    newValue = lastValue + (Math.random() * 0.5 - 0.25);
+                } else {
+                    newValue = 20.8 + Math.random() * 0.2;
+                }
+                
+                dataset.data.push(newValue);
+                if (dataset.data.length > 12) {
+                    dataset.data.shift();
+                }
+            });
+            
+            mainChart.update();
+        }, 3000);
+    </script>
+</body>
+</html>
